@@ -94,7 +94,7 @@ logd  <PROCESS_NAME> <message...>   # LEVEL=DEBUG
 logt  <PROCESS_NAME> <message...>   # LEVEL=TRACE
 ```
 
-### `log_counted <counter_var> <everyN> <LEVEL> <PROCESS_NAME> <message...>`
+`log_counted <counter_var> <everyN> <LEVEL> <PROCESS_NAME> <message...>`
 
 Increments `<counter_var>` and logs every `everyN` iterations.
 
@@ -106,7 +106,7 @@ while read -r path; do
 done < <(find . -type f)
 ```
 
-### `log_time <LEVEL> <PROCESS_NAME> <desc> -- <command> [args...]`
+`log_time <LEVEL> <PROCESS_NAME> <desc> -- <command> [args...]`
 
 Logs start/finish, measures seconds, and logs failure with exit code if the command fails.
 
