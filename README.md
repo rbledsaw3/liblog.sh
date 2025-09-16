@@ -8,13 +8,16 @@ Lightweight, dependency-free logging helpers for Bash scripts.
 YYYY-MM-DD HH:MM:SS [LEVEL]: PROCESS_NAME - MESSAGE
 ```
 
-* Defaults to logging to **stderr**.
+* Logs to **stderr** by default.
 * Level filtering (`ERROR` < `WARN` < `INFO` < `DEBUG` < `TRACE`).
+* Theme-aware colors.
 * Tiny API you can drop into any script.
 
 ---
 
 ## Install
+
+### User install (no sudo)
 
 Save the library (from your script or my snippet) to:
 
@@ -29,6 +32,27 @@ Then source it in your scripts:
 source "$HOME/.local/lib/bash/liblog.sh"
 ```
 
+### System-wide (ShellCheck-friendly path)
+
+Install to:
+
+```
+/usr/local/lib/bash/liblog.sh
+```
+
+with something like:
+
+```
+sudo mkdir /usr/local/lib/bash
+sudo cp ./liblog.sh /usr/local/lib/bash/
+```
+
+then:
+
+```bash
+source /usr/local/lib/bash/liblog.sh
+```
+
 > Requires **bash 4.3+** (uses `local -n` namerefs).
 
 ---
@@ -38,9 +62,11 @@ source "$HOME/.local/lib/bash/liblog.sh"
 ```bash
 #!/usr/bin/env bash
 
-source "$HOME/.local/lib/bash/liblog.sh"
+source /usr/local/lib/bash/liblog.sh
 
-LOG_LEVEL=INFO   # optional (default INFO)
+LOG_LEVEL=INFO      # optional (default INFO)
+LOG_COLOR=auto      # auto|always|never (default: auto)
+LOG_TS_FMT="%F %T"  # 2025-09-16 13:37:00
 
 logi setup "initializing"
 logw config "missing optional env FOO; using defaults"
@@ -63,9 +89,9 @@ loge failure "could not contact service (rc=7)"
 <timestamp> [<LEVEL>]: <PROCESS_NAME> - <MESSAGE>
 ```
 
-* **Timestamp** comes from `date +"$LOG_TS_FMT"`, default `"%Y-%m-%d %H:%M:%S"`.
-* **LEVEL** is uppercased.
-* **PROCESS\_NAME** is whatever part of your script you’re labeling (`fetch`, `upload`, `parser`, etc.).
+* **Timestamp**: comes from `date +"$LOG_TS_FMT"`, default `"%Y-%m-%d %H:%M:%S"`.
+* **LEVEL**: is uppercased.
+* **PROCESS\_NAME**: logical phase (e.g., `fetch`, `upload`, `parser`, etc.).
 * **MESSAGE** is the free-text description.
 
 ---
@@ -75,11 +101,20 @@ loge failure "could not contact service (rc=7)"
 * `LOG_LEVEL`: minimum level to emit.
 
   * One of: `ERROR`, `WARN`, `INFO`, `DEBUG`, `TRACE` (default: `INFO`).
+* `LOG_COLOR`: color policy (default: `auto`)
+
+  * `auto`: color only when writing to a TTY (and supported)
+  * `always`: force color (even when redirected)
+  * `never`: disable color
+
+  Also respects:
+
+  * `NO_COLOR` → disables color
+  * `FORCE_COLOR` → forces color
 * `LOG_TS_FMT`: timestamp format passed to `date +...` (default: `%Y-%m-%d %H:%M:%S`).
 * `LOG_FD`: numeric file descriptor to write logs to (default: `2` for stderr).
 
-  * Set `LOG_FD=1` to log to stdout.
-  * Or open a custom FD and point `LOG_FD` at it (see examples).
+  * Set `LOG_FD=1` to log to stdout, or open your own FD.
 
 ---
 
@@ -119,6 +154,28 @@ log_time INFO fetch "npm ci in web/" -- bash -lc 'cd web && npm ci'
 
 ---
 
+## Color behavior
+
+* Uses your terminal's theme via `tput setaf` standard palette:
+
+  * `ERROR`=1 (red), `WARN`=3 (yellow/orange), etc.
+
+* `DEBUG` uses **faint** (SGR 2) when possible; if 16-color is available, it prefers **bright black** (index 8) as a clearer gray.
+* `INFO` is unstyled by default for readability across light/dark themes.
+* `auto` disables colors when not a TTY; use `LOG_COLOR=always` to force colors in files/pipes.
+
+### Force color to a log file:
+
+```bash
+exec 9> ./script.log
+LOG_FD=9 LOG_COLOR=always LOG_LEVEL=DEBUG bash -lc '
+    source /usr/local/lib/bash/liblog.sh
+    logd debug "colored even when redirected"
+    logw warn "warning in theme yellow/orange"
+    loge error "error in theme red"
+'
+```
+
 ## Examples
 
 ### 1) Basic usage with levels
@@ -141,7 +198,7 @@ loge io "failed to open /dev/sg0 (permission denied)"
 ### 2) Progress logging in loops
 
 ```bash
-source "$HOME/.local/lib/bash/liblog.sh"
+source /usr/local/lib/bash/liblog.sh
 LOG_LEVEL=INFO
 local n=0
 while IFS= read -r -d '' f; do
@@ -202,9 +259,8 @@ LOG_TS_FMT='%H:%M:%S' logi short "compact timestamps"
 ## Tips
 
 * Logs go to **stderr** by default, so they won’t corrupt data you print to stdout.
-* Process names are up to you—use them to segment phases: `init`, `collector`, `tree`, `dumper`, `upload`, etc.
+* Use process names (`init`, `collector`, `tree`, `dumper`, `upload`, etc.) to segment phases.
 * With `set -euo pipefail`, the helpers don’t suppress errors; `log_time` returns the wrapped command’s exit code.
-* Colorizing is intentionally omitted to keep it dependency-free and copy-pasteable; you can wrap `log` if you want colors.
 
 ---
 
